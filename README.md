@@ -94,5 +94,5 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 <div align="center">
   <br/>
-  <b>Built with ❤️ for University Admissions & Beyond</b>
+  <b>Built with ❤️ b>
 </div>
