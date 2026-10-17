@@ -1,8 +1,7 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, Image as ImageIcon } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { motion } from 'framer-motion';
 
 interface UploadZoneProps {
   onFileSelect: (file: File) => void;
@@ -22,13 +21,12 @@ export function UploadZone({ onFileSelect, isLoading }: UploadZoneProps) {
       'image/*': ['.jpeg', '.jpg', '.png']
     },
     maxFiles: 1,
+    maxSize: 5 * 1024 * 1024,
     disabled: isLoading
   });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className={cn(
         "relative group cursor-pointer transition-all duration-300",
         isLoading && "opacity-50 pointer-events-none"
@@ -62,9 +60,9 @@ export function UploadZone({ onFileSelect, isLoading }: UploadZoneProps) {
         <div className="flex items-center space-x-2 text-xs text-gray-500 mt-4">
           <span>Supports JPG, JPEG, PNG</span>
           <span>•</span>
-          <span>Max 10MB</span>
+          <span>Max 5 MiB</span>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

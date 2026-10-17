@@ -1,98 +1,61 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/React-Dark.svg" width="60" height="60" alt="React" />
-  <img src="https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/PyTorch-Dark.svg" width="60" height="60" alt="PyTorch" />
-  <img src="https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/Python-Dark.svg" width="60" height="60" alt="Python" />
-  <img src="https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/TailwindCSS-Dark.svg" width="60" height="60" alt="Tailwind" />
-  
-  <br />
-  <br />
+# DermoAI Reliability Lab
 
-  <h1 align="center">DermoAI XAI</h1>
-  
-  <p align="center">
-    <strong>Attention-Guided Hybrid CNN–Vision Transformer Framework for Explainable Skin Cancer Classification</strong>
-  </p>
+An early research workbench for image classification, calibration and selective prediction. **Not a medical device, diagnostic service, or completed validation study.** No trained skin-lesion checkpoint or performance claim is bundled.
 
-  <p align="center">
-    <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" /></a>
-    <a href="https://reactjs.org/"><img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" /></a>
-    <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI" /></a>
-    <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" /></a>
-  </p>
+## What works in this branch
 
-  <p align="center">
-    <i>A full-stack, state-of-the-art clinical dashboard that solves the AI "Black Box" problem in Dermatology.</i>
-  </p>
-</div>
+- CPU baseline training from a local HAM10000 metadata/images directory.
+- Lesion-grouped train/validation/calibration/test splits and byte-duplicate leakage checks.
+- RGB/gradient features with logistic regression, validation-selected regularization, held-out temperature scaling, and a prespecified 0.8 confidence threshold.
+- Measured clean/blur/brightness evaluation, calibration error, confusion matrices and risk/coverage curves.
+- FastAPI inference gated on a locally trained research artifact; absent or fixture artifacts do not produce disease predictions.
+- React evidence dashboard and image upload with explicit errors. Fabricated accuracy, clinician identities, patient counts and mock explanation images were removed from the active application.
 
-<hr />
+The previous hybrid CNN/ViT architecture and XAI experiments remain in source for future work but are **not the active evaluated model**. This first baseline is intentionally simpler and is not claimed to be state of the art.
 
-## 🌟 Overview
-
-This project is a high-performance web application implementing the architecture proposed in the research paper **"Attention-Guided Hybrid CNN–Vision Transformer Framework for Explainable Skin Cancer Classification"**. 
-
-It is designed not just to accurately predict skin cancer (like Melanoma, Basal Cell Carcinoma, etc.), but to **explain its reasoning** to medical professionals using cutting-edge Explainable AI (XAI) and Uncertainty Quantification techniques.
-
-### ✨ Key Features
-
-- 🧠 **Hybrid Architecture**: Combines **EfficientNet-B4** (for local textures) and **ViT-Base/16** (for global structures) using a custom Attention-Guided Fusion mechanism.
-- 🔍 **Explainable AI (XAI)**: Generates real-time **Grad-CAM**, **SHAP**, and **LIME** overlays directly in the browser to highlight diagnostically relevant lesion areas.
-- 📊 **Uncertainty Quantification**: Utilizes **Monte Carlo Dropout** to calculate the variance of predictions, giving the model the ability to say *"I am uncertain, please consult a dermatologist."*
-- 🎨 **Clinical Dashboard**: A stunning, animated, "Glassmorphism" React frontend featuring live metrics, scan history (via Local Storage), and real-time inference displays.
-- ✂️ **Automated Preprocessing**: Implements the **DullRazor** algorithm (via OpenCV) to automatically identify and digitally remove hair from dermoscopic images before analysis.
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/skin-cancer-xai.git
-cd skin-cancer-xai
-```
-
-### 2. Backend Setup (Python API)
-The backend requires Python 3.10+ and serves the PyTorch model via FastAPI.
+## Local setup (Python 3.12, Node)
 
 ```bash
 cd backend
-python -m venv venv
-# Windows: venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --reload
+python -m venv .venv
+# Activate .venv for your shell first.
+python -m pip install -r requirements-research.txt
+python -m pytest -q tests
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
-> **Note**: On the first launch, the server will take 1-3 minutes to download the massive pre-trained ViT and EfficientNet weights from HuggingFace.
 
-### 3. Frontend Setup (React Dashboard)
-Open a new terminal and start the Vite development server.
+In another terminal:
 
 ```bash
 cd frontend
-npm install
-npm run dev -- --host
+npm ci
+npm run dev -- --host 127.0.0.1
 ```
 
-Open your browser to `http://localhost:5173`. Because we are using `--host`, you can also access this dashboard on your mobile phone if it's on the same Wi-Fi network!
+Open http://localhost:5173. The initial screen correctly reports that training is required. Set `VITE_API_URL` for a different backend. Keep this unauthenticated research application on localhost.
 
----
+## Train on your own licensed dataset copy
 
-## 🔬 Model Architecture
+Original dataset: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/DBW86T . Review its terms and obtain access yourself; no data is redistributed here.
 
-<div align="center">
-  <i>"CNNs capture the fine-grained textures, Vision Transformers capture the global context."</i>
-</div>
-<br />
+From backend:
 
-The system processes input images through two parallel streams. The CNN stream (EfficientNet-B4) preserves spatial locality, while the Transformer stream (ViT) captures long-range dependencies across image patches. These feature vectors are fused using a dynamically learned Attention coefficient ($\alpha$), optimizing the representation for multi-class skin lesion classification.
+```bash
+python train.py --metadata /path/HAM10000_metadata.csv --images /path/images --output artifacts --data-mode HAM10000
+```
 
----
+The command produces `baseline.joblib`, `split_manifest.csv` and `evaluation.json`. The server uses `artifacts/baseline.joblib` by default; override `DERMO_MODEL_PATH` if needed. Only load trusted locally generated joblib files. Do not upload pickle/joblib files or commit the dataset/weights to Git.
 
-## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/skin-cancer-xai/issues).
+## Evaluation contract
 
-<div align="center">
-  <br/>
-  <b>Built with ❤️ <b>
-</div>
+Splits approximate 60/15/10/15 percent by lesion groups, stratified on diagnosis. Preprocessing learns only from training. Regularization is selected on model-validation data. Temperature is fitted only on calibration data. Test images never tune model, temperature or threshold. Image degradations are prespecified stress tests, not independent clinical external validation. Lesion-disjoint does not mean patient-disjoint when patient identifiers are unavailable.
+
+`--data-mode synthetic_fixture` exists for engineering smoke tests; such artifacts are refused by the inference API. Passing smoke tests does not validate medical performance. The complete training path is exercised on labelled synthetic images by `test_training_smoke.py`.
+
+## Remaining work
+
+Real HAM10000 training and review; compact pretrained CNN and hybrid comparison; uncertainty intervals; external validation; properly evaluated explanations; persistent multiuser experiment storage; deployment hardening. There are no clinical or scholarship guarantees.
+
+## Attribution and status
+
+This branch extends the original AliAkbar129 project with AI-assisted implementation. The owner should review and understand all code before describing it as personal work. NumPy, SciPy, scikit-learn, pandas, Pillow, FastAPI and the existing frontend dependencies retain their respective licenses. No new repository-wide license is asserted. See `docs/STATUS.md` for validation boundaries.
