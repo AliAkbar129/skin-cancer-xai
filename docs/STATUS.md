@@ -1,7 +1,9 @@
 # Implementation and evidence status
 
-The initial public implementation instantiated an untrained classifier and served mocked SHAP/LIME overlays. This branch blocks those behaviors and introduces a separate CPU baseline. It is a first milestone, not the four-project specification completed.
+The full 10,015-image HAM10000 handcrafted baseline completed on GitHub Actions. Published evidence includes lesion splits, image hashes, test probabilities, uncertainty intervals, calibration, class-level coverage, and blur/brightness stress results. See the README for measured values and the original workflow link.
 
-Verified: utility/API tests, leakage checks, full synthetic-image training smoke test, frontend production build. The test suite rejects fixture artifacts for disease inference. Real HAM10000 images were not present in the implementation environment, so no skin-lesion accuracy is reported. No GPU training, independent clinical testing or browser-render verification is claimed.
+The frozen ResNet18 comparison is still running at this publication. Its architecture was chosen after viewing handcrafted test results, so it is exploratory. No claim of hybrid CNN/ViT reproduction, validated explanation quality, clinical suitability, or novel algorithm is made.
 
-Known limitations: app is localhost-only and lacks authentication, persisted experiments and a true background worker. Joblib must be trusted. The baseline uses handcrafted features; it is not the paper's neural architecture. A high abstention threshold can return no accepted predictions; this is reported as undefined accepted error, not zero error. The dashboard shows model-produced results only.
+The reliability baseline CI passes. A separately downloaded trained artifact passed API readiness, inference probability normalization and invalid-image rejection using a generated engineering fixture. This tests integration, not classification accuracy.
+
+The application remains a localhost research workbench without authentication, persisted experiments or a true background worker. Joblib artifacts must be trusted. No patient-disjoint guarantee is possible without patient identifiers. Lighting shift causes severe confident errors; clean calibration does not establish out-of-distribution reliability. Full clinical/external evaluation and deployment hardening remain unfinished.

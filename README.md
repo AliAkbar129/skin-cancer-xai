@@ -1,6 +1,6 @@
 # DermoAI Reliability Lab
 
-An early research workbench for image classification, calibration and selective prediction. **Not a medical device, diagnostic service, or completed validation study.** No trained skin-lesion checkpoint or performance claim is bundled.
+An early research workbench for image classification, calibration and selective prediction. **Not a medical device, diagnostic service, or completed validation study.** Real HAM10000 baseline results are published below; trained artifacts are available from the linked reproducible workflow.
 
 ## What works in this branch
 
@@ -54,8 +54,27 @@ Splits approximate 60/15/10/15 percent by lesion groups, stratified on diagnosis
 
 ## Remaining work
 
-Real HAM10000 training and review; compact pretrained CNN and hybrid comparison; uncertainty intervals; external validation; properly evaluated explanations; persistent multiuser experiment storage; deployment hardening. There are no clinical or scholarship guarantees.
+Completion of the frozen CNN comparison; hybrid comparison; external validation; properly evaluated explanations; persistent multiuser experiment storage; deployment hardening. There are no clinical or scholarship guarantees.
 
 ## Attribution and status
 
 This branch extends the original AliAkbar129 project with AI-assisted implementation. The owner should review and understand all code before describing it as personal work. NumPy, SciPy, scikit-learn, pandas, Pillow, FastAPI and the existing frontend dependencies retain their respective licenses. No new repository-wide license is asserted. See `docs/STATUS.md` for validation boundaries.
+
+
+## Measured HAM10000 baseline (18 October 2026)
+
+[Reproducible workflow and trained artifacts](https://github.com/AliAkbar129/skin-cancer-xai/actions/runs/39120833301) · [protocol](docs/HAM10000_PROTOCOL.md) · [full results](evidence/ham10000/evaluation.json).
+
+The original 10,015 images are partitioned by lesion into 5,977 training, 1,520 validation, 1,033 calibration and 1,485 test images. Test images represent 1,121 lesions. Only validation selects regularization; calibration selects temperature. The confidence threshold is fixed at 0.8.
+
+| Test condition | Macro-F1 | Coverage at 0.8 | Error among accepted predictions |
+|---|---:|---:|---:|
+| Clean, calibrated | 0.342892 | 12.12% | 15.00% |
+| Gaussian blur radius 2 | 0.336731 | 12.53% | 15.05% |
+| Brightness multiplied by 0.6 | 0.138741 | 71.18% | 75.21% |
+
+Clean macro-F1's descriptive 95% lesion-bootstrap interval is [0.306646, 0.376527] (300 resamples). Temperature scaling reduces clean ECE from 0.121245 to 0.053810, but does not prevent confident errors under brightness shift. **This model is not suitable for clinical use.** This negative finding is a principal result, not an omitted failure.
+
+[Per-image probabilities](evidence/ham10000/test_predictions.csv.gz) and the [lesion split/image-hash manifest](evidence/ham10000/split_manifest.csv.gz) permit independent metric checks without redistributing images. Source: Tschandl, Rosendahl and Kittler (2018), doi:10.1038/sdata.2018.161; original data doi:10.7910/DVN/DBW86T, CC BY-NC 4.0. Source archives are checksum-verified by `backend/download_ham10000.py`.
+
+The frozen ResNet18 comparison is an exploratory follow-up after viewing the handcrafted baseline; it is not a preregistered independent confirmation. Its workflow is still running at this publication. Neither model has patient-disjoint or external clinical validation. The saved artifact passed an API inference/normalization and invalid-image smoke check using a generated engineering fixture; that check is not additional medical evaluation.
