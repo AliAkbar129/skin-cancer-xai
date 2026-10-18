@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "model_type": "Frozen ImageNet ResNet18 pooled 512D features + balanced logistic regression",
+  "artifact_sha256": "18783fcb8910c211cabf0b85e1c40555a56ce438a4846d90a0cd946a01475c2c",
+  "checks": [
+    "readiness",
+    "inference",
+    "normalized probabilities",
+    "artifact identity",
+    "invalid image rejection"
+  ],
+  "scope": "Generated engineering fixture only; not medical performance evaluation"
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
@@ -14,6 +14,7 @@ export function Analysis() {
 
   const handleFileSelect = async (selectedFile: File) => {
     setFile(selectedFile);
+    if (originalImageUrl) URL.revokeObjectURL(originalImageUrl);
     setOriginalImageUrl(URL.createObjectURL(selectedFile));
     setIsAnalyzing(true);
     setError(null);
@@ -23,7 +24,7 @@ export function Analysis() {
     formData.append('file', selectedFile);
 
     try {
-      const backendUrl = `http://${window.location.hostname}:8000/analyze`;
+      const backendUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/analyze`;
       const response = await axios.post(backendUrl, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -31,24 +32,17 @@ export function Analysis() {
       });
       setResults(response.data);
       
-      // Save to local storage for the dashboard
-      import('../utils/storage').then(({ saveScanRecord }) => {
-        saveScanRecord({
-          prediction: response.data.prediction,
-          confidence: response.data.probability,
-          uncertainty: response.data.uncertainty,
-        });
-      });
 
     } catch (err) {
       console.error(err);
-      setError("Failed to analyze image. Ensure the backend is running.");
+      setError(axios.isAxiosError(err) ? String(err.response?.data?.detail || 'Backend unavailable') : 'Analysis failed');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const reset = () => {
+    if (originalImageUrl) URL.revokeObjectURL(originalImageUrl);
     setFile(null);
     setOriginalImageUrl(null);
     setResults(null);
@@ -69,7 +63,7 @@ export function Analysis() {
             <div className="space-y-4">
               <h1 className="text-4xl font-bold text-white">New AI Analysis</h1>
               <p className="text-gray-400 max-w-xl mx-auto">
-                Upload a dermoscopic image. The hybrid CNN-ViT model will analyze local textures and global structures in real-time.
+                Upload a dermoscopic image. The installed trained baseline will return research probabilities. A model must be trained before this feature is available.
               </p>
             </div>
             <UploadZone onFileSelect={handleFileSelect} isLoading={false} />
@@ -92,7 +86,7 @@ export function Analysis() {
             </div>
             <div className="text-center">
                 <p className="text-lg font-medium text-gray-200">Processing Scan...</p>
-                <p className="text-sm text-gray-500 mt-2">Computing Monte Carlo Uncertainty & XAI Overlays</p>
+                <p className="text-sm text-gray-500 mt-2">Computing probabilities using the installed research model</p>
             </div>
           </motion.div>
         )}

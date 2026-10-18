@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "model_type": "RGB-gradient logistic regression baseline",
+  "artifact_sha256": "ff7af9d10615ad1e3d3c63c025727888f54626a82c3121238ef90a0a17a2b9dd",
+  "checks": [
+    "readiness",
+    "inference",
+    "normalized probabilities",
+    "artifact identity",
+    "invalid image rejection"
+  ],
+  "scope": "Generated engineering fixture only; not medical performance evaluation"
+}

@@ -1,89 +1,54 @@
-import io
-import base64
-import torch
-import numpy as np
-from PIL import Image
-from fastapi import FastAPI, File, UploadFile
+"""Local research API; untrained models never return diagnoses."""
+import io, os, hashlib
+from pathlib import Path
+import joblib
+from PIL import Image, UnidentifiedImageError
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from reliability import image_features, calibrated_probabilities
+app=FastAPI(title='DermoAI Reliability Lab',version='0.2.0')
+app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173','http://127.0.0.1:5173'],allow_methods=['GET','POST'],allow_headers=['Content-Type'])
+MAX_BYTES=5*1024*1024
+Image.MAX_IMAGE_PIXELS=16_000_000
 
-from model import HybridSkinCancerModel
-from preprocessing import preprocess_image
-from xai import generate_gradcam, generate_shap_mock, generate_lime_mock
+def load_artifact():
+    path=Path(os.environ.get('DERMO_MODEL_PATH','artifacts/baseline.joblib'))
+    if not path.is_file(): raise HTTPException(503,'No trained model installed. Run the documented dataset training pipeline first.')
+    # Trust only local artifacts you generated; never accept uploaded joblib/pickle.
+    artifact=joblib.load(path)
+    if artifact.get('schema_version')!=1 or artifact.get('data_mode')!='HAM10000':
+        raise HTTPException(503,'Not a HAM10000 research artifact. Fixture models cannot serve analyses.')
+    return artifact,hashlib.sha256(path.read_bytes()).hexdigest()
 
-app = FastAPI(title="Skin Cancer XAI API")
+@app.get('/health')
+def health(): return {'status':'alive','purpose':'research_only'}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.get('/model/status')
+def status():
+    try: artifact,digest=load_artifact()
+    except HTTPException as exc: return {'ready':False,'reason':exc.detail,'metrics':None}
+    return {'ready':True,'model_type':artifact['model_type'],'sha256':digest,'data_mode':artifact['data_mode'],
+            'metrics':artifact['metrics'],'threshold':artifact['threshold'],'temperature':artifact['temperature'],
+            'limitations':'Research only; no clinical or external validation. See model_type for the active extractor.'}
 
-# Load model (Using random weights for demo since we haven't trained on 3GB dataset)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = HybridSkinCancerModel(num_classes=7).to(device)
-model.eval()
+@app.post('/analyze')
+async def analyze(file: UploadFile=File(...)):
+    artifact,digest=load_artifact()
+    raw=await file.read(MAX_BYTES+1)
+    if len(raw)>MAX_BYTES: raise HTTPException(413,'Maximum upload size is 5 MiB.')
+    try:
+        with Image.open(io.BytesIO(raw)) as im:
+            if im.format not in {'PNG','JPEG'} or im.width*im.height>16_000_000: raise ValueError('Unsupported image')
+            image=im.convert('RGB')
+    except (UnidentifiedImageError,OSError,ValueError,Image.DecompressionBombError):
+        raise HTTPException(422,'Invalid or oversized JPEG/PNG image.')
+    extractor=image_features
+    if artifact.get('feature_extractor')=='resnet18_global':
+        from neural_features import image_features as extractor
+    probs=calibrated_probabilities(artifact['pipeline'].predict_proba(extractor(image)[None,:]),artifact['temperature'])[0]
+    labels=artifact['pipeline'].classes_.tolist(); best=int(probs.argmax())
+    return {'prediction':labels[best],'probability':float(probs[best]),'all_probabilities':dict(zip(labels,probs.tolist())),
+            'decision':'refer' if probs[best]<artifact['threshold'] else 'accept','model_version':digest,
+            'data_mode':artifact['data_mode'],'model_type':artifact['model_type'],'xai':{},
+            'notice':'Research only. Input domain and clinical reliability are not validated.'}
 
-CLASSES = ['Actinic Keratoses (akiec)', 'Basal Cell Carcinoma (bcc)', 
-           'Benign Keratosis (bkl)', 'Dermatofibroma (df)', 
-           'Melanoma (mel)', 'Melanocytic Nevi (nv)', 'Vascular Lesions (vasc)']
-
-def image_to_base64(img_np):
-    img_pil = Image.fromarray(img_np)
-    buffered = io.BytesIO()
-    img_pil.save(buffered, format="JPEG")
-    return base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-@app.post("/analyze")
-async def analyze_image(file: UploadFile = File(...)):
-    image_bytes = await file.read()
-    
-    # 1. Preprocess
-    input_tensor, img_no_hair = preprocess_image(image_bytes)
-    input_tensor = input_tensor.to(device)
-    
-    # 2. Standard Inference
-    model.eval()
-    with torch.no_grad():
-        logits = model(input_tensor)
-        probs = torch.nn.functional.softmax(logits, dim=1).cpu().numpy()[0]
-        
-    # 3. Monte Carlo Dropout for Uncertainty
-    model.enable_mc_dropout()
-    mc_preds = []
-    num_mc_samples = 15
-    with torch.no_grad():
-        for _ in range(num_mc_samples):
-            mc_logits = model(input_tensor)
-            mc_probs = torch.nn.functional.softmax(mc_logits, dim=1).cpu().numpy()[0]
-            mc_preds.append(mc_probs)
-            
-    mc_preds = np.array(mc_preds)
-    mean_probs = mc_preds.mean(axis=0)
-    variance = mc_preds.var(axis=0).mean() # Mean variance across all classes
-    
-    # Calculate a simplified "Uncertainty Score" between 0 and 1
-    uncertainty_score = min(variance * 100, 1.0) # Scaling for UI
-    
-    # 4. Generate XAI Maps
-    gradcam_np = generate_gradcam(model, input_tensor, img_no_hair)
-    shap_np = generate_shap_mock(img_no_hair)
-    lime_np = generate_lime_mock(img_no_hair)
-    
-    # Find top prediction
-    top_class_idx = np.argmax(mean_probs)
-    top_class_name = CLASSES[top_class_idx]
-    top_class_prob = float(mean_probs[top_class_idx])
-    
-    return {
-        "prediction": top_class_name,
-        "probability": top_class_prob,
-        "uncertainty": float(uncertainty_score),
-        "all_probabilities": {CLASSES[i]: float(mean_probs[i]) for i in range(7)},
-        "xai": {
-            "gradcam": image_to_base64(gradcam_np),
-            "shap": image_to_base64(shap_np),
-            "lime": image_to_base64(lime_np)
-        }
-    }

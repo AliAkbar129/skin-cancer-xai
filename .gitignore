@@ -16,3 +16,10 @@ env/
 # IDE
 .vscode/
 .idea/
+
+# Generated research artifacts and local state
+**/__pycache__/
+**/.pytest_cache/
+**/artifacts/
+*.sqlite*
+*.joblib
