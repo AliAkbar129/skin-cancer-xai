@@ -54,7 +54,7 @@ Splits approximate 60/15/10/15 percent by lesion groups, stratified on diagnosis
 
 ## Remaining work
 
-Completion of the frozen CNN comparison; hybrid comparison; external validation; properly evaluated explanations; persistent multiuser experiment storage; deployment hardening. There are no clinical or scholarship guarantees.
+Hybrid comparison; external validation; properly evaluated explanations; persistent multiuser experiment storage; deployment hardening. There are no clinical or scholarship guarantees.
 
 ## Attribution and status
 
@@ -77,4 +77,31 @@ Clean macro-F1's descriptive 95% lesion-bootstrap interval is [0.306646, 0.37652
 
 [Per-image probabilities](evidence/ham10000/test_predictions.csv.gz) and the [lesion split/image-hash manifest](evidence/ham10000/split_manifest.csv.gz) permit independent metric checks without redistributing images. Source: Tschandl, Rosendahl and Kittler (2018), doi:10.1038/sdata.2018.161; original data doi:10.7910/DVN/DBW86T, CC BY-NC 4.0. Source archives are checksum-verified by `backend/download_ham10000.py`.
 
-The frozen ResNet18 comparison is an exploratory follow-up after viewing the handcrafted baseline; it is not a preregistered independent confirmation. Its workflow is still running at this publication. Neither model has patient-disjoint or external clinical validation. The saved artifact passed an API inference/normalization and invalid-image smoke check using a generated engineering fixture; that check is not additional medical evaluation.
+The frozen ResNet18 comparison is an exploratory follow-up after viewing the handcrafted baseline; it is not a preregistered independent confirmation. Its full workflow completed successfully. Neither model has patient-disjoint or external clinical validation. The saved artifact passed an API inference/normalization and invalid-image smoke check using a generated engineering fixture; that check is not additional medical evaluation.
+
+## Frozen ResNet18 comparison
+
+The same partitions were evaluated with frozen ImageNet ResNet18 pooled features and a validation-selected logistic classifier (C=0.1). No neural weights were fine-tuned. [Full results](evidence/resnet18/evaluation.json) and [test probabilities](evidence/resnet18/test_predictions.csv.gz) are committed.
+
+| Condition | Handcrafted macro-F1 | Frozen ResNet18 macro-F1 | ResNet accepted error / coverage |
+|---|---:|---:|---:|
+| Clean | 0.342892 | 0.478865 | 8.91% / 33.27% |
+| Blur radius 2 | 0.336731 | 0.419911 | 20.23% / 23.64% |
+| Brightness × 0.6 | 0.138741 | 0.366793 | 14.55% / 28.69% |
+
+ResNet clean macro-F1 has a descriptive lesion-bootstrap 95% interval [0.427010, 0.522796]. Clean ECE falls from 0.122977 to 0.021904 after held-out temperature scaling. Blur still increases accepted error materially. The paired clean macro-F1 difference is +0.135973, with a descriptive 95% interval [0.095011, 0.179013]. The training-majority reference scores 0.115113. These results support a limited within-dataset comparison; they do not establish clinical reliability.
+
+Reproduce from repository root (Python research dependencies plus torch==2.14.1 and torchvision==0.29.1, CPU wheels):
+
+```bash
+python backend/download_ham10000.py
+python backend/train.py --metadata data/ham10000/metadata.csv --images data/ham10000/images --output artifacts/ham10000 --data-mode HAM10000
+python backend/pretrained_benchmark.py --manifest artifacts/ham10000/split_manifest.csv --images data/ham10000/images --output artifacts/resnet18
+python experiments/audit_evidence.py evidence/ham10000
+python experiments/audit_evidence.py evidence/resnet18
+python experiments/compare_models.py
+```
+
+[Paired comparison](evidence/comparison.json) uses 1,000 resamples of the same test lesions and includes a training-majority reference. It is explicitly post-hoc and excludes training/model-selection uncertainty. The published manifest is reduced to image IDs, lesion IDs, labels, splits and hashes; the exact full training manifest is in the workflow artifact. Workflow artifacts expire after 90 days; committed predictions and reproducible scripts remain available.
+
+To serve the neural artifact from `backend/`, set `DERMO_MODEL_PATH=../artifacts/resnet18/baseline.joblib` before launching the API. The pretrained encoder is downloaded by torchvision; this requires the optional CPU Torch dependencies. The handcrafted artifact can be selected with `DERMO_MODEL_PATH=../artifacts/ham10000/baseline.joblib`.
