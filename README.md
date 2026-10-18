@@ -2,7 +2,7 @@
 
 An early research workbench for image classification, calibration and selective prediction. **Not a medical device, diagnostic service, or completed validation study.** Real HAM10000 baseline results are published below; trained artifacts are available from the linked reproducible workflow.
 
-## What works in this branch
+## Supported application
 
 - CPU baseline training from a local HAM10000 metadata/images directory.
 - Lesion-grouped train/validation/calibration/test splits and byte-duplicate leakage checks.
@@ -58,7 +58,7 @@ Hybrid comparison; external validation; properly evaluated explanations; persist
 
 ## Attribution and status
 
-This branch extends the original AliAkbar129 project with AI-assisted implementation. The owner should review and understand all code before describing it as personal work. NumPy, SciPy, scikit-learn, pandas, Pillow, FastAPI and the existing frontend dependencies retain their respective licenses. No new repository-wide license is asserted. See `docs/STATUS.md` for validation boundaries.
+This repository extends the original AliAkbar129 project with AI-assisted implementation. The owner should review and understand all code before describing it as personal work. NumPy, SciPy, scikit-learn, pandas, Pillow, FastAPI and the existing frontend dependencies retain their respective licenses. No new repository-wide license is asserted. See `docs/STATUS.md` for validation boundaries.
 
 
 ## Measured HAM10000 baseline (18 October 2026)
@@ -105,3 +105,7 @@ python experiments/compare_models.py
 [Paired comparison](evidence/comparison.json) uses 1,000 resamples of the same test lesions and includes a training-majority reference. It is explicitly post-hoc and excludes training/model-selection uncertainty. The published manifest is reduced to image IDs, lesion IDs, labels, splits and hashes; the exact full training manifest is in the workflow artifact. Workflow artifacts expire after 90 days; committed predictions and reproducible scripts remain available.
 
 To serve the neural artifact from `backend/`, set `DERMO_MODEL_PATH=../artifacts/resnet18/baseline.joblib` before launching the API. The pretrained encoder is downloaded by torchvision; this requires the optional CPU Torch dependencies. The handcrafted artifact can be selected with `DERMO_MODEL_PATH=../artifacts/ham10000/baseline.joblib`.
+
+## Finalization verification
+
+[Passing CI](https://github.com/AliAkbar129/skin-cancer-xai/actions/runs/39147600619) runs eight backend tests, independently audits both committed prediction sets, runs three frontend metric-contract tests, and builds the frontend. The dashboard now filters report metadata before formatting metric rows, fixing a crash with real trained-model reports. Both saved reports are used in the frontend regression tests. This is API, evidence and build verification; it is not a complete browser usability or security audit.
