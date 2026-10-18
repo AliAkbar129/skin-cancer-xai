@@ -1,0 +1,9 @@
+# HAM10000 reliability protocol
+
+Source: Tschandl, Rosendahl and Kittler, Scientific Data 5,180161 (2018), doi:10.1038/sdata.2018.161. Original dataset: https://doi.org/10.7910/DVN/DBW86T, CC BY-NC 4.0. Image archives are checked against published MD5 checksums. The Dataverse tabular response is pinned to an observed SHA256 because its representation differs from the ingested-file checksum. Images are not redistributed here.
+
+Original 10,015 images, original lesion IDs; seed42 stratified lesion groups approximately60/15/10/15 train/model-selection/calibration/test. Identical image bytes may not span partitions. Patient IDs are unavailable. Scaling uses training only. C={0.1,1,10} selected on validation macroF1; temperature fitted on calibration negative log likelihood; referral threshold fixed at0.8. Test labels do not tune these parameters. Save all seven-class probabilities, confusion matrix, macroF1, balanced accuracy, Brier, 10-bin ECE, class coverage and risk/coverage. Evaluate fixed Gaussian blur radius2 and brightness0.6. Bootstrap whole test lesions300 times for a descriptive95% macroF1 interval.
+
+The initial handcrafted RGB/gradient baseline was evaluated before adding the frozen ResNet18 comparison. The latter is exploratory, reuses the same test lesions and must not be described as new blind validation. Official torchvision ImageNet1K_V1 weights and transforms produce512D pooled features; only the balanced logistic head is trained. No CNN finetuning, hybrid ViT reproduction, clinical validation or explanation-fidelity claim.
+
+GitHub Actions repeats both runs and preserves models, predictions and manifests for90 days. The readable evidence publication is committed separately. Joblib artifacts are only for trusted local research; never load uploaded third-party models. The application can select the explicitly trained ResNet artifact via DERMO_MODEL_PATH.

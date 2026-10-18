@@ -29,7 +29,7 @@ def status():
     except HTTPException as exc: return {'ready':False,'reason':exc.detail,'metrics':None}
     return {'ready':True,'model_type':artifact['model_type'],'sha256':digest,'data_mode':artifact['data_mode'],
             'metrics':artifact['metrics'],'threshold':artifact['threshold'],'temperature':artifact['temperature'],
-            'limitations':'Color/texture baseline; not clinical validation or a CNN comparison.'}
+            'limitations':'Research only; no clinical or external validation. See model_type for the active extractor.'}
 
 @app.post('/analyze')
 async def analyze(file: UploadFile=File(...)):
@@ -42,9 +42,13 @@ async def analyze(file: UploadFile=File(...)):
             image=im.convert('RGB')
     except (UnidentifiedImageError,OSError,ValueError,Image.DecompressionBombError):
         raise HTTPException(422,'Invalid or oversized JPEG/PNG image.')
-    probs=calibrated_probabilities(artifact['pipeline'].predict_proba(image_features(image)[None,:]),artifact['temperature'])[0]
+    extractor=image_features
+    if artifact.get('feature_extractor')=='resnet18_global':
+        from neural_features import image_features as extractor
+    probs=calibrated_probabilities(artifact['pipeline'].predict_proba(extractor(image)[None,:]),artifact['temperature'])[0]
     labels=artifact['pipeline'].classes_.tolist(); best=int(probs.argmax())
     return {'prediction':labels[best],'probability':float(probs[best]),'all_probabilities':dict(zip(labels,probs.tolist())),
             'decision':'refer' if probs[best]<artifact['threshold'] else 'accept','model_version':digest,
             'data_mode':artifact['data_mode'],'model_type':artifact['model_type'],'xai':{},
             'notice':'Research only. Input domain and clinical reliability are not validated.'}
+

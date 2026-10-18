@@ -14,11 +14,11 @@ def run(metadata_path,image_dir,output,seed=42,data_mode="HAM10000"):
     meta=grouped_split(pd.read_csv(metadata_path),seed)
     paths={p.stem:p for p in Path(image_dir).rglob('*.jpg')}
     if set(meta.image_id)-set(paths): raise ValueError('Images missing for metadata records')
-    hashes={}; features=[]
+    hashes={}; features=[]; image_hashes=[]
     for row in meta.itertuples():
         path=paths[row.image_id]; h=hashlib.sha256(path.read_bytes()).hexdigest()
         if h in hashes and hashes[h]!=row.split: raise ValueError('Duplicate image across partitions')
-        hashes[h]=row.split
+        hashes[h]=row.split; image_hashes.append(h)
         with Image.open(path) as im: features.append(image_features(im))
     x=np.array(features); y=meta.dx.to_numpy()
     train=meta.split.eq('train').to_numpy(); val=meta.split.eq('validation').to_numpy(); candidates=[]
@@ -36,7 +36,19 @@ def run(metadata_path,image_dir,output,seed=42,data_mode="HAM10000"):
         for row in meta[test].itertuples():
             with Image.open(paths[row.image_id]) as im: fx.append(image_features(transform(im.convert('RGB'))))
         report[name]=metrics(calibrated_probabilities(model.predict_proba(fx),temp),indices[test],labels,threshold)
+    meta['image_sha256']=image_hashes
     meta.to_csv(output/'split_manifest.csv',index=False)
+    predictions=meta.loc[test,['image_id','lesion_id','dx']].copy()
+    for i,label in enumerate(labels):predictions['p_'+label]=p[:,i]
+    predictions.to_csv(output/'test_predictions.csv',index=False)
+    groups=predictions.lesion_id.to_numpy(); unique=np.unique(groups); rng=np.random.default_rng(seed)
+    by_group={g:np.flatnonzero(groups==g) for g in unique}; boot=[]
+    for _ in range(300):
+        ix=np.concatenate([by_group[g] for g in rng.choice(unique,len(unique),replace=True)])
+        boot.append(f1_score(indices[test][ix],p[ix].argmax(1),labels=list(range(len(labels))),average='macro',zero_division=0))
+    report['macro_f1_lesion_bootstrap_95_percentile']=list(map(float,np.quantile(boot,[.025,.975])))
+    report['split_counts']=meta.groupby('split').size().to_dict()
+    report['split_lesion_counts']=meta.groupby('split').lesion_id.nunique().to_dict()
     artifact={'schema_version':1,'data_mode':data_mode,'model_type':'RGB-gradient logistic regression baseline','pipeline':model,
               'temperature':temp,'threshold':threshold,'metrics':report,'seed':seed,'selected_C':c,
               'metadata_sha256':hashlib.sha256(Path(metadata_path).read_bytes()).hexdigest()}
@@ -50,3 +62,4 @@ if __name__=='__main__':
     ap=argparse.ArgumentParser(); ap.add_argument('--metadata',required=True); ap.add_argument('--images',required=True); ap.add_argument('--output',default='artifacts'); ap.add_argument('--seed',type=int,default=42)
     ap.add_argument('--data-mode',choices=['HAM10000','synthetic_fixture'],required=True)
     a=ap.parse_args(); run(a.metadata,a.images,a.output,a.seed,a.data_mode)
+
